@@ -11,9 +11,9 @@
 <body>
   <main id="app" aria-live="polite">
     <section id="splash" class="screen splash">
-      <img class="plane" src="assets/plane.svg" alt="">
+      <div class="plane-stage"><span class="plane-halo"></span><img class="plane" src="assets/plane.svg" alt=""><span class="plane-trail"></span></div>
       <h1>sf.crash</h1>
-      <p>جارٍ تشغيل النظام…</p>
+      <p class="splash-subtitle">PREMIUM CRASH EXPERIENCE</p>
     </section>
     <section id="login" class="screen hidden">
       <h1>تسجيل الدخول</h1>
@@ -27,8 +27,7 @@
     <section id="dashboard" class="screen hidden">
       <header><button id="menu-button" aria-label="فتح القائمة">☰</button><strong>sf.crash</strong></header>
       <div class="ash" aria-hidden="true"></div>
-      <div class="orb-wrap"><div class="orb"><span id="orb-value">—</span></div></div>
-      <p class="notice">واجهة تجريبية — لا يوجد اتصال فعلي بـ1xBet أو تنبؤات مباشرة حالياً.</p>
+      <div class="orb-wrap" aria-label="مؤثر ضوئي"><div class="orb" aria-hidden="true"></div></div>
     </section>
     <nav id="drawer" class="drawer hidden" aria-label="القائمة">
       <button data-panel="sessions">رموز الجلسة</button>

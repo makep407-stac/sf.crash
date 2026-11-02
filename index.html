@@ -3,7 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#05070b">
+  <meta name="theme-color" content="#03060c">
+  <meta name="description" content="sf.crash — واجهة متابعة ومقارنة جولات Crash">
   <title>sf.crash</title>
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="stylesheet" href="styles.css">
@@ -11,35 +12,55 @@
 <body>
   <main id="app" aria-live="polite">
     <section id="splash" class="screen splash">
-      <img class="plane" src="assets/plane.svg" alt="">
+      <div class="eyebrow">ADVANCED CRASH INTERFACE</div>
+      <div class="plane-stage">
+        <div class="plane-trail"></div>
+        <svg class="plane" viewBox="0 0 240 180" role="img" aria-label="طائرة نفاثة تقلع">
+          <defs><linearGradient id="metal" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#effbff"/><stop offset=".42" stop-color="#6bcfff"/><stop offset="1" stop-color="#1268b7"/></linearGradient></defs>
+          <path d="M18 88 214 19 177 83 126 105 98 160 79 165 82 112 18 88Z" fill="url(#metal)" stroke="#d5f6ff" stroke-width="2"/>
+          <path d="m82 112 132-93-87 86-27 55-18 5 3-53Z" fill="#168cff"/>
+          <path d="m18 88 64 24 132-93-97 88-99-19Z" fill="#f0fcff" opacity=".9"/>
+          <path d="m82 112 44-7-28 55-19 5 3-53Z" fill="#0b4d91"/>
+          <path d="m110 89 30-31 28-10-39 39Z" fill="#eafaff" opacity=".8"/>
+          <path d="m18 88 64 24-21 8Z" fill="#a9eaff"/>
+          <path d="m181 55 33-36-37 64-17 8Z" fill="#8ce7ff"/>
+        </svg>
+      </div>
       <h1>sf.crash</h1>
-      <p>جارٍ تشغيل النظام…</p>
+      <p>إقلاع النظام الذكي</p>
+      <div class="eyebrow">SECURE • ONLINE • PREMIUM</div>
     </section>
     <section id="login" class="screen hidden">
+      <div class="eyebrow" style="text-align:center">WELCOME BACK</div>
       <h1>تسجيل الدخول</h1>
       <label for="account-id">معرّف حساب 1xBet</label>
       <input id="account-id" inputmode="numeric" autocomplete="off" placeholder="أدخل المعرّف">
       <label for="app-password">كلمة مرور التطبيق</label>
       <input id="app-password" type="password" autocomplete="current-password" placeholder="كلمة مرور التطبيق">
-      <button id="login-button" type="button">دخول</button>
+      <button id="login-button" type="button">دخول إلى النظام</button>
       <p id="login-message" role="status"></p>
     </section>
     <section id="dashboard" class="screen hidden">
-      <header><button id="menu-button" aria-label="فتح القائمة">☰</button><strong>sf.crash</strong></header>
+      <header class="topbar">
+        <div class="brand"><span class="brand-mark">✦</span><strong>SF.CRASH</strong></div>
+        <div style="display:flex;align-items:center;gap:10px"><span id="network-status" class="online-pill">ONLINE</span><button id="menu-button" aria-label="فتح القائمة">☰</button></div>
+      </header>
       <div class="ash" aria-hidden="true"></div>
+      <div class="hero-copy"><div class="eyebrow">LIVE INTERFACE</div><h2>مركز المتابعة</h2><p>واجهة زجاجية • تجربة متصلة بالإنترنت</p></div>
       <div class="orb-wrap"><div class="orb"><span id="orb-value">—</span></div></div>
-      <p class="notice">واجهة تجريبية — لا يوجد اتصال فعلي بـ1xBet أو تنبؤات مباشرة حالياً.</p>
+      <div class="status-card"><div><strong>حالة الاتصال</strong><br><small>يتطلب اتصالاً نشطاً بالإنترنت</small></div><span class="online-pill">ONLINE ONLY</span></div>
+      <p class="notice">هذه نسخة واجهة تجريبية. لا يوجد اتصال مباشر أو موثّق حالياً بخوادم 1xBet، ولا تصدر توقعات حقيقية.</p>
     </section>
     <nav id="drawer" class="drawer hidden" aria-label="القائمة">
-      <button data-panel="sessions">رموز الجلسة</button>
+      <button data-panel="sessions">إدخال رموز الجلسة</button>
       <button data-panel="history">الجولات المسجلة</button>
-      <button data-panel="comparison">مقارنة التنبؤات</button>
+      <button data-panel="comparison">مقارنة التوقعات</button>
       <button id="close-menu">إغلاق</button>
     </nav>
     <section id="panel" class="panel hidden" role="dialog" aria-modal="true">
       <button id="close-panel" aria-label="إغلاق">×</button>
       <h2 id="panel-title"></h2>
-      <p id="panel-content"></p>
+      <div id="panel-content"></div>
     </section>
   </main>
   <script src="app.js"></script>

@@ -1,44 +1,47 @@
 <!doctype html>
 <html lang="ar" dir="rtl">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="theme-color" content="#090909">
-<meta name="description" content="sf.crash">
-<title>sf.crash</title>
-<link rel="manifest" href="manifest.webmanifest">
-<link rel="stylesheet" href="styles.css">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#05070b">
+  <title>sf.crash</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-<main id="app">
-<header class="topbar">
-  <div class="brand"><span class="mark">✦</span><span>SF<span class="dim">.CRASH</span></span></div>
-  <div class="head-actions"><span id="network-status" class="status"><i></i> ONLINE</span><button id="menu-button" class="menu-button" aria-label="القائمة">•••</button></div>
-</header>
-<section class="stage">
-  <div class="orbit orbit-one"></div><div class="orbit orbit-two"></div>
-  <div class="value"><span id="orb-value">—</span><small>x</small></div>
-  <div class="caption">LIVE SESSION</div>
-</section>
-<section class="connect">
-  <input id="session-token" type="password" autocomplete="off" spellcheck="false" placeholder="SESSION KEY" aria-label="رمز الجلسة">
-  <button id="connect-button" aria-label="تحقق">↗</button>
-</section>
-<div id="session-result" class="feedback" role="status"></div>
-<section class="history">
-  <div class="section-head"><span>RECENT</span><span id="round-count">00</span></div>
-  <div id="round-list" class="round-list"><span class="empty">—</span></div>
-</section>
-<footer><span>SF.CRASH</span><span class="footer-dot"></span><span>SESSION UI</span></footer>
-<nav id="drawer" class="drawer hidden" aria-label="القائمة">
-  <button data-panel="history">السجل</button>
-  <button data-panel="session">رمز الجلسة</button>
-  <button id="close-menu">إغلاق</button>
-</nav>
-<section id="panel" class="panel hidden" role="dialog" aria-modal="true">
-  <button id="close-panel" aria-label="إغلاق">×</button>
-  <h2 id="panel-title"></h2><div id="panel-content"></div>
-</section>
-</main>
-<script src="app.js"></script>
-</body></html>
+  <main id="app" aria-live="polite">
+    <section id="splash" class="screen splash">
+      <img class="plane" src="assets/plane.svg" alt="">
+      <h1>sf.crash</h1>
+      <p>جارٍ تشغيل النظام…</p>
+    </section>
+    <section id="login" class="screen hidden">
+      <h1>تسجيل الدخول</h1>
+      <label for="account-id">معرّف حساب 1xBet</label>
+      <input id="account-id" inputmode="numeric" autocomplete="off" placeholder="أدخل المعرّف">
+      <label for="app-password">كلمة مرور التطبيق</label>
+      <input id="app-password" type="password" autocomplete="current-password" placeholder="كلمة مرور التطبيق">
+      <button id="login-button" type="button">دخول</button>
+      <p id="login-message" role="status"></p>
+    </section>
+    <section id="dashboard" class="screen hidden">
+      <header><button id="menu-button" aria-label="فتح القائمة">☰</button><strong>sf.crash</strong></header>
+      <div class="ash" aria-hidden="true"></div>
+      <div class="orb-wrap"><div class="orb"><span id="orb-value">—</span></div></div>
+      <p class="notice">واجهة تجريبية — لا يوجد اتصال فعلي بـ1xBet أو تنبؤات مباشرة حالياً.</p>
+    </section>
+    <nav id="drawer" class="drawer hidden" aria-label="القائمة">
+      <button data-panel="sessions">رموز الجلسة</button>
+      <button data-panel="history">الجولات المسجلة</button>
+      <button data-panel="comparison">مقارنة التنبؤات</button>
+      <button id="close-menu">إغلاق</button>
+    </nav>
+    <section id="panel" class="panel hidden" role="dialog" aria-modal="true">
+      <button id="close-panel" aria-label="إغلاق">×</button>
+      <h2 id="panel-title"></h2>
+      <p id="panel-content"></p>
+    </section>
+  </main>
+  <script src="app.js"></script>
+</body>
+</html>

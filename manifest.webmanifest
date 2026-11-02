@@ -1,0 +1,16 @@
+{
+  "id": "/",
+  "name": "sf.crash",
+  "short_name": "sf.crash",
+  "description": "واجهة متابعة ومقارنة جولات Crash",
+  "lang": "ar",
+  "dir": "rtl",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#05070b",
+  "theme_color": "#05070b",
+  "icons": [
+    {"src":"assets/plane.svg","sizes":"any","type":"image/svg+xml","purpose":"any"}
+  ]
+}

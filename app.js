@@ -1,64 +1,25 @@
 (()=>{"use strict";
-const $=id=>document.getElementById(id);
-const screens=["splash","login","dashboard"];
+const $=id=>document.getElementById(id),screens=["splash","login","dashboard"];
 const show=id=>screens.forEach(s=>$(s).classList.toggle("hidden",s!==id));
-const KEY="sfcrash.rounds.v1";
-let rounds=loadRounds();
-function loadRounds(){try{const v=JSON.parse(localStorage.getItem(KEY)||"[]");return Array.isArray(v)?v:[]}catch{return[]}}
-function saveRounds(){localStorage.setItem(KEY,JSON.stringify(rounds))}
-function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
-function splash(){setTimeout(()=>show("login"),5000)}
-$("login-button").addEventListener("click",()=>{
- const id=$("account-id").value.trim(),pass=$("app-password").value;
- if(!id){$("login-message").textContent="أدخل معرّف الحساب أولاً.";return}
- if(pass!=="sf.2027"){$("login-message").textContent="كلمة مرور التطبيق غير صحيحة.";return}
- $("login-message").textContent="";
- // This is only a local demo gate, not secure account authentication.
- sessionStorage.setItem("sfcrash.demo.signedin","1");
- show("dashboard");$("app-password").value="";
-});
-$("menu-button").addEventListener("click",()=>$("drawer").classList.remove("hidden"));
+const KEY="sfcrash.rounds.v1";let rounds=[];
+function online(){return navigator.onLine}
+function setNetwork(){const ok=online();const p=$("network-status");if(p){p.textContent=ok?"ONLINE":"OFFLINE";p.classList.toggle("offline",!ok)}document.querySelectorAll("button").forEach(b=>{if(b.id!=="close-panel"&&b.id!=="close-menu")b.disabled=!ok})}
+function requireOnline(){if(!online()){alert("هذا التطبيق يتطلب اتصالاً بالإنترنت. أعد الاتصال ثم حاول مجدداً.");return false}return true}
+function splash(){setTimeout(()=>{show(online()?"login":"login");setNetwork();if(!online())$("login-message").textContent="اتصل بالإنترنت للمتابعة."},3200)}
+$("login-button").addEventListener("click",()=>{if(!requireOnline())return;const id=$("account-id").value.trim(),pass=$("app-password").value;if(!id){$("login-message").textContent="أدخل معرّف الحساب أولاً.";return}if(pass!=="sf.2027"){$("login-message").textContent="كلمة مرور التطبيق غير صحيحة.";return}$("login-message").textContent="";show("dashboard");$("app-password").value="";setNetwork()});
+$("menu-button").addEventListener("click",()=>{if(requireOnline())$("drawer").classList.remove("hidden")});
 $("close-menu").addEventListener("click",()=>$("drawer").classList.add("hidden"));
-$("drawer").addEventListener("click",e=>{const b=e.target.closest("[data-panel]");if(b)openPanel(b.dataset.panel)});
+$("drawer").addEventListener("click",e=>{const b=e.target.closest("[data-panel]");if(b&&requireOnline())openPanel(b.dataset.panel)});
 $("close-panel").addEventListener("click",()=>$("panel").classList.add("hidden"));
-function openPanel(which){
- $("drawer").classList.add("hidden");$("panel").classList.remove("hidden");
- const title=$("panel-title"),body=$("panel-content");
- if(which==="sessions"){
-  title.textContent="ربط الجلسة";
-  body.innerHTML='<div class="session-lock">حماية حسابك أولاً: لا تلصق هنا ملفات تعريف الارتباط أو رموز الجلسة الحقيقية. لا يوجد حالياً خادم موثّق أو تكامل رسمي مع 1xBet لحفظها والتحقق منها.</div><p class="hint">هذه الشاشة جاهزة كواجهة فقط. عند توفير تكامل رسمي وآمن يمكن ربطها بخادم يحفظ الأسرار بعيداً عن المتصفح.</p><button class="secondary" id="session-info">فهم حالة الربط</button>';
-  $("session-info").onclick=()=>alert("حالة الربط: غير مفعّل. لم يتم إرسال أو حفظ أي رمز.");
- }else if(which==="history"){
-  title.textContent="الجولات المسجلة";
-  body.innerHTML=roundStats()+roundForm()+roundList();
-  $("save-round").onclick=addRound;
-  $("clear-rounds").onclick=()=>{if(confirm("حذف سجل الجولات من هذا الجهاز؟")){rounds=[];saveRounds();openPanel("history")}};
- }else{
-  title.textContent="مقارنة التنبؤات بالنتائج";
-  body.innerHTML=roundStats()+comparisonList();
- }
-}
-function roundStats(){
- const count=rounds.length,matched=rounds.filter(r=>r.hit).length,rate=count?(matched/count*100).toFixed(1):"—";
- return '<div class="stat-grid"><div class="stat"><small>الجولات المسجلة</small><strong>'+count+'</strong></div><div class="stat"><small>تطابق التوقعات</small><strong>'+rate+(count?"%":"")+'</strong></div></div><p class="hint">النسبة محسوبة من الإدخالات التي سجلتها يدوياً فقط، وليست دليلاً على دقة مستقبلية.</p>';
-}
-function roundForm(){
- return '<h3>تسجيل جولة للمقارنة</h3><div class="field-row"><div><label for="predicted">التوقع (x)</label><input id="predicted" type="number" min="1" step="0.01" placeholder="مثال 1.80"></div><div><label for="actual">النتيجة الفعلية (x)</label><input id="actual" type="number" min="1" step="0.01" placeholder="مثال 2.10"></div></div><button class="primary" id="save-round">حفظ الجولة</button><p class="hint">يُعد التوقع مطابقاً إذا كان أقل من أو يساوي النتيجة الفعلية. هذا مقياس مبسط للمقارنة وليس توصية للمراهنة.</p>';
-}
-function addRound(){
- const p=Number($("predicted").value),a=Number($("actual").value);
- if(!Number.isFinite(p)||!Number.isFinite(a)||p<1||a<1){alert("أدخل قيمتين صحيحتين أكبر من أو تساوي 1.");return}
- rounds.unshift({id:Date.now(),predicted:p,actual:a,hit:p<=a,at:new Date().toISOString()});
- rounds=rounds.slice(0,500);saveRounds();openPanel("history");
-}
-function roundList(){
- if(!rounds.length)return '<div class="empty">لا توجد جولات مسجلة بعد. أضف أول جولة للمقارنة.</div>';
- return '<h3>آخر الجولات</h3><div class="round-list">'+rounds.slice(0,30).map(r=>'<div class="round-item"><span>توقع '+r.predicted.toFixed(2)+'x<br>نتيجة '+r.actual.toFixed(2)+'x</span><strong class="'+(r.hit?"good":"bad")+'">'+(r.hit?"مطابق":"غير مطابق")+'</strong></div>').join("")+'</div><button class="secondary" id="clear-rounds">مسح السجل</button>';
-}
-function comparisonList(){
- if(!rounds.length)return '<div class="empty">لا توجد بيانات للمقارنة. سجّل جولات من قسم «الجولات المسجلة» أولاً.</div>';
- return '<p>تُعرض هنا مقارنة كل توقع أدخلته مع النتيجة الفعلية التي سجلتها.</p>'+roundList();
-}
-function makeAsh(){const host=document.querySelector(".ash");if(!host)return;for(let i=0;i<34;i++){const d=document.createElement("i");d.style.left=(Math.random()*100)+"%";d.style.animationDuration=(7+Math.random()*13)+"s";d.style.animationDelay=(-Math.random()*18)+"s";d.style.opacity=String(.25+Math.random()*.65);host.appendChild(d)}}
-show("splash");splash();makeAsh();
+function openPanel(which){$("drawer").classList.add("hidden");$("panel").classList.remove("hidden");const title=$("panel-title"),body=$("panel-content");
+if(which==="sessions"){title.textContent="إدخال رمز الجلسة";body.innerHTML='<p>أدخل الرمز في الحقل لإرساله عند توفر خادم تكامل رسمي وآمن.</p><form class="session-form" id="session-form"><label for="session-token">رمز الجلسة</label><input id="session-token" type="password" autocomplete="off" spellcheck="false" placeholder="ألصق الرمز هنا" required><button class="primary" type="submit">التحقق من الرمز</button><div class="session-result" id="session-result" role="status"></div></form><div class="session-lock">حماية الحساب: لا يتم حفظ الرمز أو إرساله حالياً. لا يوجد API رسمي موثّق أو خادم خلفي مربوط بهذا المشروع، لذلك لن ندّعي أن الرمز تم التحقق منه.</div>'; $("session-form").addEventListener("submit",e=>{e.preventDefault();const v=$("session-token").value.trim();$("session-result").textContent=v?"لم يتم التحقق: الخادم الآمن غير مفعّل. لم يُرسل الرمز ولم يُحفظ.":"أدخل رمز الجلسة أولاً."; $("session-token").value=""});
+}else if(which==="history"){title.textContent="الجولات المسجلة";body.innerHTML=roundStats()+roundForm()+roundList();$("save-round").onclick=addRound;$("clear-rounds").onclick=()=>{if(confirm("حذف سجل الجولات الحالي؟")){rounds=[];openPanel("history")}}}else{title.textContent="مقارنة التوقعات بالنتائج";body.innerHTML=roundStats()+comparisonList()}}
+function roundStats(){const count=rounds.length,matched=rounds.filter(r=>r.hit).length,rate=count?(matched/count*100).toFixed(1):"—";return '<div class="stat-grid"><div class="stat"><small>الجولات في هذه الجلسة</small><strong>'+count+'</strong></div><div class="stat"><small>التطابق</small><strong>'+rate+(count?"%":"")+'</strong></div></div><p class="hint">البيانات مؤقتة في الذاكرة وتُمسح عند تحديث الصفحة. التخزين السحابي يحتاج خادماً وقاعدة بيانات.</p>'}
+function roundForm(){return '<h3>تسجيل جولة للمقارنة</h3><div class="field-row"><div><label for="predicted">التوقع (x)</label><input id="predicted" type="number" min="1" step=".01" placeholder="1.80"></div><div><label for="actual">النتيجة الفعلية (x)</label><input id="actual" type="number" min="1" step=".01" placeholder="2.10"></div></div><button class="primary" id="save-round">حفظ الجولة</button><p class="hint">المقارنة إحصائية يدوية ولا تتنبأ بالنتائج المستقبلية.</p>'}
+function addRound(){if(!requireOnline())return;const p=Number($("predicted").value),a=Number($("actual").value);if(!Number.isFinite(p)||!Number.isFinite(a)||p<1||a<1){alert("أدخل قيمتين صحيحتين أكبر من أو تساوي 1.");return}rounds.unshift({predicted:p,actual:a,hit:p<=a});rounds=rounds.slice(0,100);openPanel("history")}
+function roundList(){if(!rounds.length)return '<div class="empty">لا توجد جولات مسجلة في هذه الجلسة.</div>';return '<h3>آخر الجولات</h3><div class="round-list">'+rounds.slice(0,30).map(r=>'<div class="round-item"><span>توقع '+r.predicted.toFixed(2)+'x<br>نتيجة '+r.actual.toFixed(2)+'x</span><strong class="'+(r.hit?"good":"bad")+'">'+(r.hit?"مطابق":"غير مطابق")+'</strong></div>').join("")+'</div><button class="secondary" id="clear-rounds">مسح السجل</button>'}
+function comparisonList(){return rounds.length?'<p>مقارنة الإدخالات الحالية.</p>'+roundList():'<div class="empty">لا توجد بيانات للمقارنة بعد.</div>'}
+function makeAsh(){const host=document.querySelector(".ash");if(!host)return;for(let i=0;i<36;i++){const d=document.createElement("i");d.style.left=Math.random()*100+"%";d.style.animationDuration=7+Math.random()*13+"s";d.style.animationDelay=-Math.random()*18+"s";host.appendChild(d)}}
+window.addEventListener("online",setNetwork);window.addEventListener("offline",()=>{setNetwork();$("login-message").textContent="انقطع الاتصال. التطبيق متوقف حتى عودة الإنترنت."});
+show("splash");splash();makeAsh();setNetwork();
 })();

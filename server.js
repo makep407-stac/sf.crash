@@ -4,6 +4,14 @@ const { WebSocketServer, WebSocket } = require("ws");
 
 const PORT = Number(process.env.PORT || 10000);
 const SESSION_SECRET = process.env.SFCRASH_SESSION_SECRET;
+
+// Provider credentials are read from Render environment variables.
+// Values are never returned by the API or written to logs.
+const providerCredentials = Object.freeze({
+  session: process.env.XBET_SESSION || "",
+  userhash: process.env.XBET_USERHASH || "",
+  accessToken: process.env.XBET_ACCESS_TOKEN || ""
+});
 const TOKEN_TTL_SECONDS = 60 * 60 * 12;
 const sessions = new Map();
 const rateBuckets = new Map();
@@ -97,7 +105,17 @@ const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, "http://localhost");
 
   if (req.method === "GET" && url.pathname === "/health") {
-    return json(res, 200, { ok: true, service: "sf.crash-backend", websocket: true });
+    return json(res, 200, {
+      ok: true,
+      service: "sf.crash-backend",
+      websocket: true,
+      providerCredentials: {
+        session: Boolean(providerCredentials.session),
+        userhash: Boolean(providerCredentials.userhash),
+        accessToken: Boolean(providerCredentials.accessToken)
+      },
+      providerLinked: false
+    });
   }
 
   if (req.method === "POST" && url.pathname === "/api/session") {

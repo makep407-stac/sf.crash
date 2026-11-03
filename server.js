@@ -23,6 +23,8 @@ const providerLive = {
   lastMessageAt: null,
   messagesReceived: 0,
   lastMessageKind: null,
+  lastCloseCode: null,
+  lastCloseReason: null,
   lastError: null
 };
 let providerSocket = null;
@@ -82,7 +84,10 @@ function connectCrashFeed() {
     providerLive.lastError = String(err && err.code || "connection_error").slice(0, 80);
   });
 
-  ws.on("close", (code) => {
+  ws.on("close", (code, reason) => {
+    providerLive.lastCloseCode = Number(code);
+    // Store only a short, sanitized close reason; never log frames or credentials.
+    providerLive.lastCloseReason = String(reason || "").replace(/[^\x20-\x7E]/g, "").replace(/(access_token|token|authorization|cookie)\s*[:=]\s*[^\s&]+/gi, "$1=[redacted]").slice(0, 100) || null;
     providerLive.state = "disconnected";
     providerLive.authenticated = false;
     providerSocket = null;
@@ -102,6 +107,8 @@ function providerStatusPayload() {
     lastMessageAt: providerLive.lastMessageAt,
     messagesReceived: providerLive.messagesReceived,
     lastMessageKind: providerLive.lastMessageKind,
+    lastCloseCode: providerLive.lastCloseCode,
+    lastCloseReason: providerLive.lastCloseReason,
     lastError: providerLive.lastError,
     rawFramesStored: false,
     predictionAvailable: false

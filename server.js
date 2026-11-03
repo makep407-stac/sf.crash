@@ -16,6 +16,99 @@ const TOKEN_TTL_SECONDS = 60 * 60 * 12;
 const sessions = new Map();
 const rateBuckets = new Map();
 
+const providerLive = {
+  state: "not_configured",
+  authenticated: false,
+  connectedAt: null,
+  lastMessageAt: null,
+  messagesReceived: 0,
+  lastMessageKind: null,
+  lastError: null
+};
+let providerSocket = null;
+let providerRetry = null;
+let providerRetryDelay = 3000;
+
+function connectCrashFeed() {
+  if (!providerCredentials.accessToken) {
+    providerLive.state = "missing_token";
+    return;
+  }
+  if (providerSocket && (providerSocket.readyState === WebSocket.OPEN || providerSocket.readyState === WebSocket.CONNECTING)) return;
+
+  const target = new URL("wss://1dz-x.com/games-frame/sockets/crash");
+  target.search = new URLSearchParams({
+    ref: "1", gr: "1188", whence: "114", fcountry: "8",
+    appGuid: "games-web-host-b2c-web-v3", lng: "ar", v: "1.5",
+    access_token: providerCredentials.accessToken
+  }).toString();
+
+  providerLive.state = "connecting";
+  providerLive.lastError = null;
+  const ws = new WebSocket(target.toString(), {
+    headers: { Origin: "https://1dz-x.com" },
+    handshakeTimeout: 10000,
+    maxPayload: 1024 * 1024
+  });
+  providerSocket = ws;
+
+  ws.on("open", () => {
+    providerLive.state = "connected";
+    providerLive.authenticated = true;
+    providerLive.connectedAt = new Date().toISOString();
+    providerRetryDelay = 3000;
+  });
+
+  ws.on("message", data => {
+    providerLive.messagesReceived += 1;
+    providerLive.lastMessageAt = new Date().toISOString();
+    // Keep only a coarse, non-sensitive message classification; never persist raw frames.
+    try {
+      const parsed = JSON.parse(data.toString());
+      const keys = parsed && typeof parsed === "object" ? Object.keys(parsed) : [];
+      providerLive.lastMessageKind = keys.slice(0, 12).join(",");
+    } catch {
+      providerLive.lastMessageKind = "non_json_frame";
+    }
+  });
+
+  ws.on("unexpected-response", (_req, res) => {
+    providerLive.state = "rejected";
+    providerLive.authenticated = false;
+    providerLive.lastError = "upstream_http_" + res.statusCode;
+  });
+
+  ws.on("error", err => {
+    providerLive.lastError = String(err && err.code || "connection_error").slice(0, 80);
+  });
+
+  ws.on("close", (code) => {
+    providerLive.state = "disconnected";
+    providerLive.authenticated = false;
+    providerSocket = null;
+    if (providerRetry) clearTimeout(providerRetry);
+    providerRetry = setTimeout(connectCrashFeed, providerRetryDelay);
+    providerRetryDelay = Math.min(providerRetryDelay * 2, 60000);
+  });
+}
+
+function providerStatusPayload() {
+  return {
+    provider: "1xBet Crash",
+    credentialsConfigured: Boolean(providerCredentials.accessToken),
+    connectionState: providerLive.state,
+    authenticated: providerLive.authenticated,
+    connectedAt: providerLive.connectedAt,
+    lastMessageAt: providerLive.lastMessageAt,
+    messagesReceived: providerLive.messagesReceived,
+    lastMessageKind: providerLive.lastMessageKind,
+    lastError: providerLive.lastError,
+    rawFramesStored: false,
+    predictionAvailable: false
+  };
+}
+
+
 if (!SESSION_SECRET || SESSION_SECRET.length < 32) {
   console.error("SFCRASH_SESSION_SECRET must be set to a random secret of at least 32 characters.");
   process.exit(1);
@@ -114,34 +207,13 @@ const server = http.createServer(async (req, res) => {
         userhash: Boolean(providerCredentials.userhash),
         accessToken: Boolean(providerCredentials.accessToken)
       },
-      providerStatus: {
-        authenticated: false,
-        connectionTested: false,
-        dataFeedActive: false
-      },
-      providerLinked: false
+      providerStatus: providerStatusPayload(),
+      providerLinked: providerLive.authenticated
     });
   }
 
   if (req.method === "GET" && url.pathname === "/api/provider/status") {
-    const configured = {
-      session: Boolean(providerCredentials.session),
-      userhash: Boolean(providerCredentials.userhash),
-      accessToken: Boolean(providerCredentials.accessToken)
-    };
-    const missing = Object.entries(configured).filter(([, present]) => !present).map(([name]) => name);
-    return json(res, 200, {
-      provider: "1xBet",
-      credentialsConfigured: missing.length === 0,
-      credentials: configured,
-      missing,
-      authenticated: false,
-      connectionTested: false,
-      dataFeedActive: false,
-      message: missing.length
-        ? "Some credential environment variables are missing. No provider authentication has been attempted."
-        : "All expected environment variables are present, but their validity and provider authentication have not been tested."
-    });
+    return json(res, 200, providerStatusPayload());
   }
 
   if (req.method === "POST" && url.pathname === "/api/session") {
@@ -218,4 +290,5 @@ wss.on("connection", ws => {
 
 server.listen(PORT, "0.0.0.0", () => {
   console.log(`sf.crash backend listening on port ${PORT}`);
+  connectCrashFeed();
 });

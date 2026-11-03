@@ -53,8 +53,8 @@ function connectCrashFeed() {
   providerSocket = ws;
 
   ws.on("open", () => {
-    providerLive.state = "connected";
-    providerLive.authenticated = true;
+    providerLive.state = "connected_unverified";
+    providerLive.authenticated = false;
     providerLive.connectedAt = new Date().toISOString();
     providerRetryDelay = 3000;
   });

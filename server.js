@@ -118,6 +118,27 @@ const server = http.createServer(async (req, res) => {
     });
   }
 
+  if (req.method === "GET" && url.pathname === "/api/provider/status") {
+    const configured = {
+      session: Boolean(providerCredentials.session),
+      userhash: Boolean(providerCredentials.userhash),
+      accessToken: Boolean(providerCredentials.accessToken)
+    };
+    const missing = Object.entries(configured).filter(([, present]) => !present).map(([name]) => name);
+    return json(res, 200, {
+      provider: "1xBet",
+      credentialsConfigured: missing.length === 0,
+      credentials: configured,
+      missing,
+      authenticated: false,
+      connectionTested: false,
+      dataFeedActive: false,
+      message: missing.length
+        ? "Some credential environment variables are missing. No provider authentication has been attempted."
+        : "All expected environment variables are present, but their validity and provider authentication have not been tested."
+    });
+  }
+
   if (req.method === "POST" && url.pathname === "/api/session") {
     const ip = req.socket.remoteAddress || "unknown";
     if (rateLimited(ip)) return json(res, 429, { error: "Too many requests. Try again later." });

@@ -114,6 +114,11 @@ const server = http.createServer(async (req, res) => {
         userhash: Boolean(providerCredentials.userhash),
         accessToken: Boolean(providerCredentials.accessToken)
       },
+      providerStatus: {
+        authenticated: false,
+        connectionTested: false,
+        dataFeedActive: false
+      },
       providerLinked: false
     });
   }

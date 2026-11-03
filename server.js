@@ -96,7 +96,7 @@ function connectCrashFeed() {
     }).join("").slice(0, 240);
     providerLive.lastFramePreview = preview;
     providerLive.lastFrameShape = "text";
-    const trimmed = frame.trim().replace(/\\x1e+$/, "");
+    const trimmed = frame.trim().replace(/[\x1e]+$/, "");
     // The upstream explicitly canceled its application-level handshake.
     // A WebSocket TCP upgrade is not proof of provider authentication.
     try {

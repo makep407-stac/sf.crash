@@ -26,6 +26,7 @@ const providerLive = {
   lastFrameType: null,
   lastFrameBytes: null,
   lastFrameAt: null,
+  lastFramePreview: null,
   lastCloseCode: null,
   lastCloseReason: null,
   lastError: null
@@ -81,6 +82,14 @@ function connectCrashFeed() {
     }
 
     const frame = bytes.toString("utf8");
+    // Expose only a short redacted diagnostic preview; never retain the original frame.
+    const preview = frame
+      .replace(/(access_token|token|authorization|cookie|session|userhash|jwt)(["'\\s:=]+)[^&\\s"'<>]+/gi, "$1$2[redacted]")
+      .replace(/eyJ[A-Za-z0-9_-]{10,}(?:\\.[A-Za-z0-9_-]+){1,2}/g, "[redacted-jwt]")
+      .replace(/[A-Za-z0-9_-]{48,}/g, "[redacted-long-value]")
+      .replace(/[^\\x20-\\x7E]/g, "?")
+      .slice(0, 120);
+    providerLive.lastFramePreview = preview;
     const trimmed = frame.trim();
     if (trimmed === "ping" || trimmed === "pong") {
       providerLive.lastMessageKind = trimmed + "_heartbeat";
@@ -160,6 +169,7 @@ function providerStatusPayload() {
     lastFrameType: providerLive.lastFrameType,
     lastFrameBytes: providerLive.lastFrameBytes,
     lastFrameAt: providerLive.lastFrameAt,
+    lastFramePreview: providerLive.lastFramePreview,
     lastCloseCode: providerLive.lastCloseCode,
     lastCloseReason: providerLive.lastCloseReason,
     lastError: providerLive.lastError,

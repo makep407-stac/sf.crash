@@ -23,6 +23,9 @@ const providerLive = {
   lastMessageAt: null,
   messagesReceived: 0,
   lastMessageKind: null,
+  lastFrameType: null,
+  lastFrameBytes: null,
+  lastFrameAt: null,
   lastCloseCode: null,
   lastCloseReason: null,
   lastError: null
@@ -61,10 +64,18 @@ function connectCrashFeed() {
     providerRetryDelay = 3000;
   });
 
-  ws.on("message", data => {
+  ws.on("message", (data, isBinary) => {
     providerLive.messagesReceived += 1;
-    providerLive.lastMessageAt = new Date().toISOString();
-    // Keep only a coarse, non-sensitive message classification; never persist raw frames.
+    const now = new Date().toISOString();
+    providerLive.lastMessageAt = now;
+    // Record transport metadata only. Never inspect or store upstream frame contents.
+    providerLive.lastFrameType = isBinary ? "binary" : "text";
+    providerLive.lastFrameBytes = Buffer.isBuffer(data) ? data.length : Buffer.byteLength(String(data));
+    providerLive.lastFrameAt = now;
+    if (isBinary) {
+      providerLive.lastMessageKind = "binary_frame_unparsed";
+      return;
+    }
     try {
       const parsed = JSON.parse(data.toString());
       const keys = parsed && typeof parsed === "object" ? Object.keys(parsed) : [];
@@ -107,6 +118,9 @@ function providerStatusPayload() {
     lastMessageAt: providerLive.lastMessageAt,
     messagesReceived: providerLive.messagesReceived,
     lastMessageKind: providerLive.lastMessageKind,
+    lastFrameType: providerLive.lastFrameType,
+    lastFrameBytes: providerLive.lastFrameBytes,
+    lastFrameAt: providerLive.lastFrameAt,
     lastCloseCode: providerLive.lastCloseCode,
     lastCloseReason: providerLive.lastCloseReason,
     lastError: providerLive.lastError,

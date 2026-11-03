@@ -68,20 +68,59 @@ function connectCrashFeed() {
     providerLive.messagesReceived += 1;
     const now = new Date().toISOString();
     providerLive.lastMessageAt = now;
-    // Record transport metadata only. Never inspect or store upstream frame contents.
     providerLive.lastFrameType = isBinary ? "binary" : "text";
-    providerLive.lastFrameBytes = Buffer.isBuffer(data) ? data.length : Buffer.byteLength(String(data));
+    const bytes = Buffer.isBuffer(data) ? data : Buffer.from(data);
+    providerLive.lastFrameBytes = bytes.length;
     providerLive.lastFrameAt = now;
+
+    // Inspect only safe structure. Never retain or log upstream frame contents.
     if (isBinary) {
       providerLive.lastMessageKind = "binary_frame_unparsed";
+      providerLive.lastFrameShape = "binary";
+      return;
+    }
+
+    const frame = bytes.toString("utf8");
+    const trimmed = frame.trim();
+    if (trimmed === "ping" || trimmed === "pong") {
+      providerLive.lastMessageKind = trimmed + "_heartbeat";
+      providerLive.lastFrameShape = "plain_ascii_word";
+      return;
+    }
+    if (trimmed === "2" || trimmed === "3") {
+      providerLive.lastMessageKind = trimmed === "2" ? "engineio_ping" : "engineio_pong";
+      providerLive.lastFrameShape = "single_digit";
+      return;
+    }
+    if (trimmed === "40" || trimmed === "41") {
+      providerLive.lastMessageKind = trimmed === "40" ? "socketio_connect" : "socketio_disconnect";
+      providerLive.lastFrameShape = "two_digit_protocol_frame";
       return;
     }
     try {
-      const parsed = JSON.parse(data.toString());
-      const keys = parsed && typeof parsed === "object" ? Object.keys(parsed) : [];
-      providerLive.lastMessageKind = keys.slice(0, 12).join(",");
+      const parsed = JSON.parse(trimmed);
+      providerLive.lastMessageKind = Array.isArray(parsed)
+        ? "json_array"
+        : parsed === null ? "json_null" : typeof parsed === "object" ? "json_object" : "json_scalar";
+      providerLive.lastFrameShape = "valid_json";
     } catch {
-      providerLive.lastMessageKind = "non_json_frame";
+      const printable = [...frame].filter(ch => {
+        const code = ch.codePointAt(0);
+        return code >= 0x20 && code <= 0x7e;
+      }).length;
+      const whitespace = [...frame].filter(ch => /\\s/.test(ch)).length;
+      const digits = [...frame].filter(ch => /[0-9]/.test(ch)).length;
+      const letters = [...frame].filter(ch => /[A-Za-z]/.test(ch)).length;
+      const punctuation = [...frame].filter(ch => /[^A-Za-z0-9\\s]/.test(ch)).length;
+      providerLive.lastMessageKind = "non_json_text_unclassified";
+      providerLive.lastFrameShape = JSON.stringify({
+        characters: [...frame].length,
+        printableAscii: printable,
+        letters,
+        digits,
+        whitespace,
+        punctuation
+      });
     }
   });
 

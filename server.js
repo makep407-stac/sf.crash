@@ -96,7 +96,21 @@ function connectCrashFeed() {
     }).join("").slice(0, 240);
     providerLive.lastFramePreview = preview;
     providerLive.lastFrameShape = "text";
-    const trimmed = frame.trim();
+    const trimmed = frame.trim().replace(/\\x1e+$/, "");
+    // The upstream explicitly canceled its application-level handshake.
+    // A WebSocket TCP upgrade is not proof of provider authentication.
+    try {
+      const upstreamError = JSON.parse(trimmed);
+      if (upstreamError && typeof upstreamError.error === "string" &&
+          /handshake.*canceled/i.test(upstreamError.error)) {
+        providerLive.state = "handshake_rejected";
+        providerLive.authenticated = false;
+        providerLive.lastMessageKind = "upstream_handshake_canceled";
+        providerLive.lastFrameShape = "upstream_error_json";
+        providerLive.lastError = "upstream_handshake_canceled";
+        return;
+      }
+    } catch {}
     if (trimmed === "ping" || trimmed === "pong") {
       providerLive.lastMessageKind = trimmed + "_heartbeat";
       providerLive.lastFrameShape = "plain_ascii_word";

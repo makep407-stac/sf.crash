@@ -73,7 +73,7 @@ function connectCrashFeed() {
     providerLive.state = "connected_unverified";
     providerLive.authenticated = false;
     providerLive.connectedAt = new Date().toISOString();
-    providerRetryDelay = 3000;
+    // Keep exponential backoff across short-lived upstream connections.
     // SignalR JSON protocol handshake must be sent before application messages.
     ws.send(JSON.stringify({ protocol: "json", version: 1 }) + "\x1e");
   });
@@ -174,6 +174,16 @@ function connectCrashFeed() {
     }
     try {
       const parsed = JSON.parse(trimmed);
+      if (parsed && parsed.type === 7) {
+        providerLive.state = "upstream_close_message";
+        providerLive.authenticated = false;
+        providerLive.lastMessageKind = "signalr_close_message";
+        providerLive.lastFrameShape = "signalr_type_7";
+        providerLive.lastError = typeof parsed.error === "string"
+          ? "upstream_close: " + parsed.error.replace(/[^\\x20-\\x7E]/g, "").slice(0, 100)
+          : "upstream_close_without_reason";
+        continue;
+      }
       providerLive.lastMessageKind = Array.isArray(parsed)
         ? "json_array"
         : parsed === null ? "json_null" : typeof parsed === "object" ? "json_object" : "json_scalar";
@@ -214,7 +224,10 @@ function connectCrashFeed() {
     providerLive.lastCloseCode = Number(code);
     // Store only a short, sanitized close reason; never log frames or credentials.
     providerLive.lastCloseReason = String(reason || "").replace(/[^\x20-\x7E]/g, "").replace(/(access_token|token|authorization|cookie)\s*[:=]\s*[^\s&]+/gi, "$1=[redacted]").slice(0, 100) || null;
-    providerLive.state = "disconnected";
+    if (providerLive.state !== "upstream_close_message" &&
+        providerLive.state !== "handshake_rejected") {
+      providerLive.state = "disconnected";
+    }
     providerLive.authenticated = false;
     providerSocket = null;
     if (providerRetry) clearTimeout(providerRetry);

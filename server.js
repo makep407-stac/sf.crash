@@ -51,18 +51,31 @@ function connectCrashFeed() {
 
   providerLive.state = "connecting";
   providerLive.lastError = null;
+  const cookieParts = [];
+  if (providerCredentials.session) cookieParts.push("SESSION=" + providerCredentials.session);
+  if (providerCredentials.userhash) cookieParts.push("user_token=" + providerCredentials.userhash);
+
   const ws = new WebSocket(target.toString(), {
-    headers: { Origin: "https://1dz-x.com" },
+    headers: {
+      Origin: "https://1dz-x.com",
+      ...(cookieParts.length ? { Cookie: cookieParts.join("; ") } : {})
+    },
     handshakeTimeout: 10000,
     maxPayload: 1024 * 1024
   });
   providerSocket = ws;
+
+  let signalrHandshakeAccepted = false;
+  let accountInvocationSent = false;
+  let frameBuffer = "";
 
   ws.on("open", () => {
     providerLive.state = "connected_unverified";
     providerLive.authenticated = false;
     providerLive.connectedAt = new Date().toISOString();
     providerRetryDelay = 3000;
+    // SignalR JSON protocol handshake must be sent before application messages.
+    ws.send(JSON.stringify({ protocol: "json", version: 1 }) + "\\x1e");
   });
 
   ws.on("message", (data, isBinary) => {
@@ -81,7 +94,12 @@ function connectCrashFeed() {
       return;
     }
 
-    const frame = bytes.toString("utf8");
+    const incoming = bytes.toString("utf8");
+    frameBuffer += incoming;
+    const frames = frameBuffer.split("\\x1e");
+    frameBuffer = frames.pop() || "";
+    for (const framePart of frames) {
+    const frame = framePart;
     // Redact secrets first, then preserve non-ASCII characters as Unicode escapes
     // so diagnostics can identify the actual message without exposing raw frames.
     const safeFrame = frame
@@ -150,6 +168,7 @@ function connectCrashFeed() {
         whitespace,
         punctuation
       });
+    }
     }
   });
 

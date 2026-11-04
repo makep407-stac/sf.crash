@@ -75,7 +75,7 @@ function connectCrashFeed() {
     providerLive.connectedAt = new Date().toISOString();
     providerRetryDelay = 3000;
     // SignalR JSON protocol handshake must be sent before application messages.
-    ws.send(JSON.stringify({ protocol: "json", version: 1 }) + "\\x1e");
+    ws.send(JSON.stringify({ protocol: "json", version: 1 }) + "\x1e");
   });
 
   ws.on("message", (data, isBinary) => {
@@ -96,7 +96,7 @@ function connectCrashFeed() {
 
     const incoming = bytes.toString("utf8");
     frameBuffer += incoming;
-    const frames = frameBuffer.split("\\x1e");
+    const frames = frameBuffer.split("\x1e");
     frameBuffer = frames.pop() || "";
     for (const framePart of frames) {
     const frame = framePart;
@@ -114,7 +114,35 @@ function connectCrashFeed() {
     }).join("").slice(0, 240);
     providerLive.lastFramePreview = preview;
     providerLive.lastFrameShape = "text";
-    const trimmed = frame.trim().replace(/[\x1e]+$/, "");
+    const trimmed = frame.trim();
+    if (!trimmed) continue;
+    if (!signalrHandshakeAccepted) {
+      try {
+        const handshake = JSON.parse(trimmed);
+        if (handshake && typeof handshake.error === "string") {
+          providerLive.state = "handshake_rejected";
+          providerLive.authenticated = false;
+          providerLive.lastMessageKind = "signalr_handshake_rejected";
+          providerLive.lastError = "signalr_handshake_rejected";
+          continue;
+        }
+        if (handshake && typeof handshake === "object" && !Array.isArray(handshake)) {
+          signalrHandshakeAccepted = true;
+          providerLive.state = "handshake_accepted_unverified";
+          providerLive.lastMessageKind = "signalr_handshake_accepted";
+          if (!accountInvocationSent) {
+            accountInvocationSent = true;
+            ws.send(JSON.stringify({
+              arguments: [{ activity: 30, account: "1858150899" }],
+              invocationId: "0",
+              target: "Account",
+              type: 1
+            }) + "\x1e");
+          }
+          continue;
+        }
+      } catch {}
+    }
     // The upstream explicitly canceled its application-level handshake.
     // A WebSocket TCP upgrade is not proof of provider authentication.
     try {

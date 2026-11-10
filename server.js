@@ -1,5 +1,6 @@
 const http = require("node:http");
 const crypto = require("node:crypto");
+const { analyzeRounds } = require("./prediction-engine");
 const { WebSocketServer, WebSocket } = require("ws");
 
 const PORT = Number(process.env.PORT || 10000);
@@ -365,6 +366,24 @@ const server = http.createServer(async (req, res) => {
 
   if (req.method === "GET" && url.pathname === "/api/provider/status") {
     return json(res, 200, providerStatusPayload());
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/prediction/analyze") {
+    const auth = String(req.headers.authorization || "");
+    const token = auth.startsWith("Bearer ") ? auth.slice(7) : "";
+    if (!verifyAppSession(token)) return json(res, 401, { error: "Valid app session required." });
+    try {
+      const body = await readJson(req);
+      const result = analyzeRounds(body.rounds);
+      return json(res, 200, {
+        ...result,
+        source: "client_supplied_history",
+        sourceVerified: false,
+        generatedAt: new Date().toISOString()
+      });
+    } catch (error) {
+      return json(res, 400, { error: error.message || "Invalid round history." });
+    }
   }
 
   if (req.method === "POST" && url.pathname === "/api/session") {

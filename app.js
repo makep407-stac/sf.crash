@@ -25,3 +25,52 @@ $("#typeFilter").addEventListener("change",render);$("#wilayaFilter").addEventLi
 $("#notifBtn").onclick=()=>toast("لا توجد إشعارات جديدة");$("#sortBtn").onclick=()=>toast("تعرض النسخة التجريبية الأحدث أولاً");
 render();
 if("serviceWorker" in navigator)window.addEventListener("load",()=>navigator.serviceWorker.register("/sw.js").catch(()=>{}));
+
+
+// DARNA v2: complete Algerian administrative search + Supabase authentication.
+let algeriaAdmin=[];
+let darnaSupabase=null;
+let darnaUser=null;
+const authConfigReady=Boolean(window.DARNA_SUPABASE_URL&&window.DARNA_SUPABASE_ANON_KEY&&window.supabase);
+if(authConfigReady){darnaSupabase=window.supabase.createClient(window.DARNA_SUPABASE_URL,window.DARNA_SUPABASE_ANON_KEY);darnaSupabase.auth.getSession().then(({data})=>{darnaUser=data.session?.user||null;updateAuthButton();});darnaSupabase.auth.onAuthStateChange((_event,session)=>{darnaUser=session?.user||null;updateAuthButton();});}
+function updateAuthButton(){const b=$("#authOpen");if(b)b.textContent=darnaUser?(darnaUser.user_metadata?.full_name||darnaUser.email||darnaUser.phone||"حسابي"):"دخول / حساب جديد";}
+function fillSelect(el,items,placeholder){if(!el)return;el.innerHTML="";const first=document.createElement("option");first.value="";first.textContent=placeholder;el.appendChild(first);items.forEach(item=>{const o=document.createElement("option");o.value=item.value;o.textContent=item.label;el.appendChild(o)});}
+async function loadAdminData(){try{const response=await fetch("/data/algeria-admin.json");if(!response.ok)throw new Error("dataset unavailable");algeriaAdmin=await response.json();fillSelect($("#wilayaFilter"),algeriaAdmin.map(w=>({value:String(w.code),label:String(w.code).padStart(2,"0")+" — "+w.arabic})).sort((a,b)=>a.label.localeCompare(b.label,"ar")),"كل الولايات الـ69");}catch(e){toast("تعذر تحميل قائمة الولايات حالياً");}}
+function selectedWilaya(){return algeriaAdmin.find(w=>String(w.code)===$("#wilayaFilter")?.value);}
+$("#wilayaFilter")?.addEventListener("change",()=>{const w=selectedWilaya();const ds=w?.dairas||[];fillSelect($("#dairaFilter"),ds.map((d,i)=>({value:String(i),label:d.arabic})),w?"كل الدوائر":"اختر الولاية أولاً");$("#dairaFilter").disabled=!w;fillSelect($("#communeFilter"),[],"اختر الدائرة أولاً");$("#communeFilter").disabled=true;render();});
+$("#dairaFilter")?.addEventListener("change",()=>{const w=selectedWilaya();const d=w?.dairas?.[Number($("#dairaFilter").value)];fillSelect($("#communeFilter"),(d?.communes||[]).map((c,i)=>({value:String(i),label:c.arabic})),d?"كل البلديات":"اختر الدائرة أولاً");$("#communeFilter").disabled=!d;render();});
+$("#communeFilter")?.addEventListener("change",()=>render());
+const previousDarnaRender=render;
+render=function(){
+ let list=[...posts];
+ if(activeDeal!=="الكل")list=list.filter(p=>p.deal===activeDeal);
+ if(activeCity!=="الكل")list=list.filter(p=>(p.wilaya||p.city)===activeCity);
+ if(currentView==="saved")list=list.filter(p=>saved.has(p.id));
+ const q=$("#globalSearch")?.value.trim().toLocaleLowerCase("ar");if(q)list=list.filter(p=>([p.title,p.city,p.wilaya,p.daira,p.commune,p.area,p.type,p.name].filter(Boolean).join(" ")).toLocaleLowerCase("ar").includes(q));
+ const deal=$("#dealFilter")?.value;if(deal&&deal!=="الكل")list=list.filter(p=>p.deal===deal);
+ const type=$("#typeFilter")?.value;if(type&&type!=="الكل")list=list.filter(p=>p.type===type);
+ const w=selectedWilaya();if(w)list=list.filter(p=>(p.wilayaCode?String(p.wilayaCode)===String(w.code):(p.wilaya||p.city)===w.arabic));
+ const d=$("#dairaFilter")?.value;if(d!==undefined&&d!==""&&w){const name=w.dairas[Number(d)]?.arabic;list=list.filter(p=>p.daira===name);}
+ const c=$("#communeFilter")?.value;if(c!==undefined&&c!==""&&w&&d!==undefined&&d!==""){const name=w.dairas[Number(d)]?.communes[Number(c)]?.arabic;list=list.filter(p=>p.commune===name);}
+ const max=Number($("#maxPriceFilter")?.value||0);if(max>0)list=list.filter(p=>p.numeric>0&&p.numeric<=max);
+ $("#feedPosts").innerHTML=list.length?list.map(card).join(""):`<div class="empty-state"><span>⌕</span><b>لا توجد نتائج مطابقة</b><p>غيّر الولاية أو البلدية أو نوع العملية والسعر.</p></div>`;
+};
+function openAuth(mode="login"){const isSignup=mode==="signup";openModal(`<div class="auth-brand"><span class="brand-mark">D</span><span><b>DARNA</b><small>حسابك في مجتمع دارنا</small></span></div><h2>${isSignup?"أنشئ حسابك":"مرحباً بعودتك"}</h2><p>سجّل بالبريد الإلكتروني أو رقم الهاتف. لا تشارك رمز التحقق مع أي شخص.</p><div class="auth-tabs"><button type="button" class="${!isSignup?"selected":""}" id="authLoginTab">تسجيل الدخول</button><button type="button" class="${isSignup?"selected":""}" id="authSignupTab">حساب جديد</button></div><div class="form-field"><label>طريقة التسجيل</label><select id="authMethod"><option value="email">البريد الإلكتروني</option><option value="phone">رقم الهاتف</option></select></div><div id="authNameWrap" class="form-field ${isSignup?"":"hidden"}"><label>الاسم الكامل</label><input id="authName" autocomplete="name" placeholder="اسمك الكامل"></div><div class="form-field"><label id="authIdentifierLabel">البريد الإلكتروني</label><input id="authIdentifier" autocomplete="email" placeholder="name@example.com"></div><div id="authPasswordWrap" class="form-field"><label>كلمة المرور</label><input id="authPassword" type="password" autocomplete="current-password" minlength="8" placeholder="8 أحرف على الأقل"></div><div id="authOtpWrap" class="form-field hidden"><label>رمز التحقق</label><input id="authOtp" inputmode="numeric" autocomplete="one-time-code" placeholder="أدخل الرمز الذي وصلك"></div><p id="authHint" class="auth-hint">${authConfigReady?"سيتم إرسال رابط تأكيد إلى بريدك عند إنشاء الحساب.":"يلزم ربط مشروع Supabase وإعداد مفاتيحه لتفعيل التسجيل الحقيقي."}</p><button class="primary-btn modal-submit" id="authSubmit">${isSignup?"إنشاء الحساب":"دخول"}</button><p id="authMessage" role="status"></p><button class="auth-switch" id="authSwitch">${isSignup?"لديك حساب؟ سجّل الدخول":"ليس لديك حساب؟ أنشئ حساباً"}</button>`);
+ let signup=isSignup,otpSent=false;
+ const method=$("#authMethod"),label=$("#authIdentifierLabel"),identifier=$("#authIdentifier"),password=$("#authPasswordWrap"),name=$("#authNameWrap"),otp=$("#authOtpWrap"),submit=$("#authSubmit"),hint=$("#authHint"),msg=$("#authMessage");
+ function sync(){const phone=method.value==="phone";label.textContent=phone?"رقم الهاتف مع رمز الدولة (+213)":"البريد الإلكتروني";identifier.placeholder=phone?"+213XXXXXXXXX":"name@example.com";identifier.type=phone?"tel":"email";password.classList.toggle("hidden",phone);name.classList.toggle("hidden",!signup);otp.classList.toggle("hidden",!otpSent);submit.textContent=otpSent?"تحقق من الرمز":signup?"إنشاء الحساب":phone?"إرسال رمز الدخول":"دخول";hint.textContent=!authConfigReady?"يلزم ربط Supabase وإعداد مفاتيح المشروع لتفعيل المصادقة الحقيقية.":phone?"تصل رموز الهاتف عبر مزود SMS الذي تضبطه في Supabase.":"تأكيد البريد الإلكتروني يتم عبر رسالة يرسلها Supabase.";}
+ method.onchange=sync;sync();
+ $("#authLoginTab").onclick=()=>openAuth("login");$("#authSignupTab").onclick=()=>openAuth("signup");$("#authSwitch").onclick=()=>openAuth(signup?"login":"signup");
+ submit.onclick=async()=>{if(!authConfigReady){msg.textContent="لم يتم ربط Supabase بعد. اربط المشروع أولاً لتفعيل الحسابات والتحقق الحقيقي.";return;}submit.disabled=true;msg.textContent="جارٍ الاتصال...";
+ try{const value=identifier.value.trim();if(method.value==="email"){if(signup){const {data,error}=await darnaSupabase.auth.signUp({email:value,password:$("#authPassword").value,options:{data:{full_name:$("#authName").value.trim()},emailRedirectTo:location.origin}});if(error)throw error;msg.textContent=data.session?"تم إنشاء الحساب وتسجيل الدخول.":"أرسلنا رسالة تأكيد إلى بريدك. افتحها لتفعيل الحساب.";if(!data.session)submit.disabled=true;}else{const {error}=await darnaSupabase.auth.signInWithPassword({email:value,password:$("#authPassword").value});if(error)throw error;closeModal();toast("تم تسجيل الدخول");}}
+ else if(signup&&!otpSent){const {error}=await darnaSupabase.auth.signInWithOtp({phone:value,options:{channel:"sms",shouldCreateUser:true,data:{full_name:$("#authName").value.trim()}}});if(error)throw error;otpSent=true;sync();msg.textContent="أرسلنا رمز التحقق إلى هاتفك.";}
+ else if(!signup&&!otpSent){const {error}=await darnaSupabase.auth.signInWithOtp({phone:value,options:{channel:"sms",shouldCreateUser:false}});if(error)throw error;otpSent=true;sync();msg.textContent="أرسلنا رمز الدخول إلى هاتفك.";}
+ else{const {error}=await darnaSupabase.auth.verifyOtp({phone:value,token:$("#authOtp").value.trim(),type:"sms"});if(error)throw error;closeModal();toast("تم التحقق وتسجيل الدخول");}
+ }catch(err){msg.textContent=err.message||"تعذر إتمام العملية.";}finally{submit.disabled=false;}};
+}
+$("#authOpen")?.addEventListener("click",()=>darnaUser?openModal(`<h2>حسابك في دارنا</h2><p>${darnaUser.email||darnaUser.phone||""}</p><button class="primary-btn modal-submit" id="signOutBtn">تسجيل الخروج</button>`):openAuth());
+document.addEventListener("click",e=>{if(e.target.id==="signOutBtn"&&darnaSupabase)darnaSupabase.auth.signOut().then(()=>{closeModal();toast("تم تسجيل الخروج")});});
+const originalPublishForm=publishForm;
+publishForm=function(){if(!darnaUser){openAuth("signup");toast("أنشئ حساباً لنشر إعلانك");return;}originalPublishForm();};
+loadAdminData();
+render();

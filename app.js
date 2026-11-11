@@ -75,7 +75,7 @@ publishForm=function(){if(!darnaUser){openAuth("signup");toast("أنشئ حسا�
 loadAdminData();
 render();
 
-function mapRemoteListing(row){return {id:row.id,name:"عضو عقار DZ",initial:"د",verified:false,time:new Date(row.created_at).toLocaleDateString("ar-DZ"),city:row.wilaya_name,wilaya:row.wilaya_name,wilayaCode:row.wilaya_code,daira:row.daira_name,commune:row.commune_name,area:row.address||row.commune_name,deal:row.deal_type==="sale"?"بيع":"كراء",type:row.property_type,title:row.title,price:Number(row.price).toLocaleString("ar-DZ")+" دج",numeric:Number(row.price),desc:row.description,beds:row.bedrooms||0,baths:row.bathrooms||0,size:row.area_m2?row.area_m2+" م²":"غير محدد",image:row.image_urls?.[0]||"https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?w=1200&auto=format&fit=crop",likes:0,comments:0};}
+function mapRemoteListing(row){return {id:row.id,userId:row.user_id,name:"عضو عقار DZ",initial:"د",verified:false,time:new Date(row.created_at).toLocaleDateString("ar-DZ"),city:row.wilaya_name,wilaya:row.wilaya_name,wilayaCode:row.wilaya_code,daira:row.daira_name,commune:row.commune_name,area:row.address||row.commune_name,deal:row.deal_type==="sale"?"بيع":"كراء",type:row.property_type,title:row.title,price:Number(row.price).toLocaleString("ar-DZ")+" دج",numeric:Number(row.price),desc:row.description,beds:row.bedrooms||0,baths:row.bathrooms||0,size:row.area_m2?row.area_m2+" م²":"غير محدد",image:row.image_urls?.[0]||"https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?w=1200&auto=format&fit=crop",likes:0,comments:0};}
 async function loadRemoteListings(){if(!darnaSupabase)return;let query=darnaSupabase.from("listings").select("*").eq("status","published");const deal=$("#dealFilter")?.value||activeDeal;if(deal&&deal!=="الكل")query=query.eq("deal_type",deal==="بيع"?"sale":"rent");const type=$("#typeFilter")?.value;if(type&&type!=="الكل")query=query.eq("property_type",type);const w=selectedWilaya();if(w)query=query.eq("wilaya_code",w.code);const di=$("#dairaFilter")?.value;if(w&&di!==undefined&&di!=="")query=query.eq("daira_name",w.dairas[Number(di)]?.arabic);const ci=$("#communeFilter")?.value;if(w&&di!==undefined&&di!==""&&ci!==undefined&&ci!=="")query=query.eq("commune_name",w.dairas[Number(di)]?.communes[Number(ci)]?.arabic);const max=Number($("#maxPriceFilter")?.value||0);if(max>0)query=query.lte("price",max);const q=$("#globalSearch")?.value.trim();if(q)query=query.ilike("title","%"+q.replace(/[%_]/g,"")+"%");const {data,error}=await query.order("created_at",{ascending:false}).limit(100);if(error){console.warn("AQAR DZ listings:",error.message);return;}posts=data.map(mapRemoteListing);render();}
 
 loadRemoteListings();
@@ -85,3 +85,100 @@ document.querySelectorAll(".filter").forEach(b=>b.addEventListener("click",()=>{
 
 ["#dealFilter","#typeFilter","#wilayaFilter","#dairaFilter","#communeFilter","#maxPriceFilter"].forEach(sel=>$(sel)?.addEventListener("change",()=>loadRemoteListings()));
 $("#globalSearch")?.addEventListener("input",()=>{clearTimeout(window.__darnaSearchTimer);window.__darnaSearchTimer=setTimeout(loadRemoteListings,350);});
+
+
+// AQar DZ live community actions: likes, saves, comments, private messages and image upload.
+function aqarEscape(value){return String(value??"").replace(/[&<>"']/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[ch]));}
+function aqarUuid(value){return typeof value==="string"&&/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);}
+async function aqarRefreshEngagement(){
+  if(!darnaSupabase)return;
+  const uid=darnaUser?.id;
+  const {data:likeRows}=await darnaSupabase.from("listing_likes").select("listing_id,user_id");
+  const {data:saveRows}=uid?await darnaSupabase.from("listing_saves").select("listing_id").eq("user_id",uid):{data:[]};
+  const counts=new Map();
+  liked.clear();
+  for(const row of likeRows||[]){counts.set(row.listing_id,(counts.get(row.listing_id)||0)+1);if(uid&&row.user_id===uid)liked.add(row.listing_id);}
+  for(const post of posts){if(aqarUuid(post.id))post.likes=counts.get(post.id)||0;}
+  if(uid){saved=new Set((saveRows||[]).map(row=>row.listing_id));}
+  render();
+}
+if(darnaSupabase){
+  darnaSupabase.auth.onAuthStateChange(()=>{setTimeout(aqarRefreshEngagement,0);});
+  setTimeout(aqarRefreshEngagement,500);
+}
+document.addEventListener("click",async e=>{
+  const action=e.target.closest("[data-action]");
+  if(!action||!aqarUuid(action.dataset.id))return;
+  const id=action.dataset.id,kind=action.dataset.action;
+  if(!["like","save","comment","contact"].includes(kind))return;
+  e.preventDefault();e.stopImmediatePropagation();
+  const post=posts.find(item=>item.id===id);
+  if(!post)return;
+  if((kind==="like"||kind==="save"||kind==="comment"||kind==="contact")&&!darnaUser){openAuth("login");toast("سجّل الدخول أولاً");return;}
+  if(kind==="like"||kind==="save"){
+    const table=kind==="like"?"listing_likes":"listing_saves",set=kind==="like"?liked:saved,was=set.has(id);
+    const result=was
+      ? await darnaSupabase.from(table).delete().eq("listing_id",id).eq("user_id",darnaUser.id)
+      : await darnaSupabase.from(table).insert({listing_id:id,user_id:darnaUser.id});
+    if(result.error){toast("تعذر تحديث التفاعل: "+result.error.message);return;}
+    was?set.delete(id):set.add(id);
+    if(kind==="like")post.likes=Math.max(0,(post.likes||0)+(was?-1:1));
+    render();toast(kind==="like"?(was?"أزلت إعجابك":"أضفت إعجابك"):(was?"أزلت العقار من المحفوظات":"حفظت العقار"));
+    return;
+  }
+  if(kind==="comment"){
+    openModal(`<h2>التعليقات</h2><p>${aqarEscape(post.title)}</p><div id="aqarComments" class="comment-list">جارٍ تحميل التعليقات...</div><form id="aqarCommentForm"><div class="form-field"><label>أضف تعليقاً</label><textarea id="aqarCommentText" maxlength="2000" required placeholder="اكتب تعليقك..."></textarea></div><button class="primary-btn modal-submit" type="submit">نشر التعليق</button></form>`);
+    const box=$("#aqarComments");
+    const {data,error}=await darnaSupabase.from("listing_comments").select("id,user_id,body,created_at").eq("listing_id",id).order("created_at",{ascending:true});
+    if(error){box.textContent="تعذر تحميل التعليقات.";return;}
+    box.innerHTML=(data||[]).length?(data||[]).map(row=>`<div class="comment-item"><b>${aqarEscape(row.user_id===darnaUser.id?"أنت":"عضو عقار DZ")}</b><p>${aqarEscape(row.body)}</p><small>${new Date(row.created_at).toLocaleString("ar-DZ")}</small></div>`).join(""):"<p>لا توجد تعليقات بعد. كن أول من يعلّق.</p>";
+    $("#aqarCommentForm").onsubmit=async ev=>{ev.preventDefault();const body=$("#aqarCommentText").value.trim();if(!body)return;const {error:err}=await darnaSupabase.from("listing_comments").insert({listing_id:id,user_id:darnaUser.id,body});if(err){toast("تعذر نشر التعليق: "+err.message);return;}post.comments=(post.comments||0)+1;toast("نُشر تعليقك");const refreshed=await darnaSupabase.from("listing_comments").select("id,user_id,body,created_at").eq("listing_id",id).order("created_at",{ascending:true});box.innerHTML=(refreshed.data||[]).map(row=>`<div class="comment-item"><b>${aqarEscape(row.user_id===darnaUser.id?"أنت":"عضو عقار DZ")}</b><p>${aqarEscape(row.body)}</p><small>${new Date(row.created_at).toLocaleString("ar-DZ")}</small></div>`).join("");$("#aqarCommentText").value="";render();};
+    return;
+  }
+  if(kind==="contact"){
+    if(post.userId===darnaUser.id){toast("هذا إعلانك أنت");return;}
+    openModal(`<h2>راسل صاحب العقار</h2><p>${aqarEscape(post.title)}</p><form id="aqarMessageForm"><div class="form-field"><label>رسالتك</label><textarea id="aqarMessageText" maxlength="5000" required placeholder="السلام عليكم، أود معرفة المزيد عن العقار..."></textarea></div><button class="primary-btn modal-submit" type="submit">إرسال الرسالة</button></form>`);
+    $("#aqarMessageForm").onsubmit=async ev=>{ev.preventDefault();const body=$("#aqarMessageText").value.trim();if(!body)return;const {error}=await darnaSupabase.from("direct_messages").insert({listing_id:id,sender_id:darnaUser.id,recipient_id:post.userId,body});if(error){toast("تعذر إرسال الرسالة: "+error.message);return;}closeModal();toast("تم إرسال رسالتك");};
+  }
+},true);
+
+// Use the public Storage bucket for direct photo selection on mobile.
+const aqarOriginalPublish=publishForm;
+publishForm=function(){
+  aqarOriginalPublish();
+  const form=$("#publishForm");
+  if(!form||!darnaUser)return;
+  const imageUrl=form.querySelector('input[name="image"]');
+  if(!imageUrl||form.querySelector("#aqarImageFile"))return;
+  const field=document.createElement("div");
+  field.className="form-field";
+  field.innerHTML='<label for="aqarImageFile">أو اختر صورة من هاتفك (حتى 10 MB)</label><input id="aqarImageFile" type="file" accept="image/jpeg,image/png,image/webp">';
+  imageUrl.parentElement.parentElement.insertBefore(field,imageUrl.parentElement);
+  $("#aqarImageFile").addEventListener("change",async ev=>{
+    const file=ev.target.files?.[0];if(!file)return;
+    if(file.size>10*1024*1024){toast("حجم الصورة يتجاوز 10 MB");ev.target.value="";return;}
+    const ext=(file.name.split(".").pop()||"jpg").toLowerCase().replace(/[^a-z0-9]/g,"")||"jpg";
+    const path=darnaUser.id+"/"+Date.now()+"-"+Math.random().toString(36).slice(2)+"."+ext;
+    toast("جارٍ رفع الصورة...");
+    const {error}=await darnaSupabase.storage.from("listing-images").upload(path,file,{contentType:file.type,upsert:false});
+    if(error){toast("تعذر رفع الصورة: "+error.message);return;}
+    const {data}=darnaSupabase.storage.from("listing-images").getPublicUrl(path);
+    imageUrl.value=data.publicUrl;toast("تم رفع الصورة وإرفاقها بالإعلان");
+  });
+};
+
+// Inbox: show messages addressed to or sent by the signed-in member.
+const aqarOriginalView=view;
+view=function(v){
+  if(v!=="messages"){aqarOriginalView(v);return;}
+  currentView="messages";
+  document.querySelectorAll("[data-view]").forEach(b=>b.classList.toggle("active",b.dataset.view==="messages"));
+  if(!darnaUser){openAuth("login");return;}
+  openModal('<h2>رسائلك</h2><div id="aqarInbox">جارٍ تحميل المحادثات...</div>');
+  darnaSupabase.from("direct_messages").select("id,listing_id,sender_id,recipient_id,body,read_at,created_at").or("sender_id.eq."+darnaUser.id+",recipient_id.eq."+darnaUser.id).order("created_at",{ascending:false}).limit(100).then(({data,error})=>{
+    const box=$("#aqarInbox");if(!box)return;
+    if(error){box.textContent="تعذر تحميل الرسائل.";return;}
+    box.innerHTML=(data||[]).length?(data||[]).map(row=>`<article class="inbox-message"><b>${row.sender_id===darnaUser.id?"أنت أرسلت":"رسالة واردة"}</b><p>${aqarEscape(row.body)}</p><small>${new Date(row.created_at).toLocaleString("ar-DZ")}</small></article>`).join(""):"<p>لا توجد رسائل بعد. يمكنك مراسلة أصحاب العقارات من الإعلانات.</p>";
+    darnaSupabase.from("direct_messages").update({read_at:new Date().toISOString()}).in("id",(data||[]).filter(x=>x.recipient_id===darnaUser.id&&!x.read_at).map(x=>x.id));
+  });
+};

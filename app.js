@@ -1,64 +1,27 @@
-(()=>{"use strict";
-const $=id=>document.getElementById(id);
-const screens=["splash","login","dashboard"];
-const show=id=>screens.forEach(s=>$(s).classList.toggle("hidden",s!==id));
-const KEY="sfcrash.rounds.v1";
-let rounds=loadRounds();
-function loadRounds(){try{const v=JSON.parse(localStorage.getItem(KEY)||"[]");return Array.isArray(v)?v:[]}catch{return[]}}
-function saveRounds(){localStorage.setItem(KEY,JSON.stringify(rounds))}
-function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
-function splash(){setTimeout(()=>show("login"),5000)}
-$("login-button").addEventListener("click",()=>{
- const id=$("account-id").value.trim(),pass=$("app-password").value;
- if(!id){$("login-message").textContent="أدخل معرّف الحساب أولاً.";return}
- if(pass!=="sf.2027"){$("login-message").textContent="كلمة مرور التطبيق غير صحيحة.";return}
- $("login-message").textContent="";
- // This is only a local demo gate, not secure account authentication.
- sessionStorage.setItem("sfcrash.demo.signedin","1");
- show("dashboard");$("app-password").value="";
-});
-$("menu-button").addEventListener("click",()=>$("drawer").classList.remove("hidden"));
-$("close-menu").addEventListener("click",()=>$("drawer").classList.add("hidden"));
-$("drawer").addEventListener("click",e=>{const b=e.target.closest("[data-panel]");if(b)openPanel(b.dataset.panel)});
-$("close-panel").addEventListener("click",()=>$("panel").classList.add("hidden"));
-function openPanel(which){
- $("drawer").classList.add("hidden");$("panel").classList.remove("hidden");
- const title=$("panel-title"),body=$("panel-content");
- if(which==="sessions"){
-  title.textContent="ربط الجلسة";
-  body.innerHTML='<div class="session-lock">حماية حسابك أولاً: لا تلصق هنا ملفات تعريف الارتباط أو رموز الجلسة الحقيقية. لا يوجد حالياً خادم موثّق أو تكامل رسمي مع 1xBet لحفظها والتحقق منها.</div><p class="hint">هذه الشاشة جاهزة كواجهة فقط. عند توفير تكامل رسمي وآمن يمكن ربطها بخادم يحفظ الأسرار بعيداً عن المتصفح.</p><button class="secondary" id="session-info">فهم حالة الربط</button>';
-  $("session-info").onclick=()=>alert("حالة الربط: غير مفعّل. لم يتم إرسال أو حفظ أي رمز.");
- }else if(which==="history"){
-  title.textContent="الجولات المسجلة";
-  body.innerHTML=roundStats()+roundForm()+roundList();
-  $("save-round").onclick=addRound;
-  $("clear-rounds").onclick=()=>{if(confirm("حذف سجل الجولات من هذا الجهاز؟")){rounds=[];saveRounds();openPanel("history")}};
- }else{
-  title.textContent="مقارنة التنبؤات بالنتائج";
-  body.innerHTML=roundStats()+comparisonList();
- }
-}
-function roundStats(){
- const count=rounds.length,matched=rounds.filter(r=>r.hit).length,rate=count?(matched/count*100).toFixed(1):"—";
- return '<div class="stat-grid"><div class="stat"><small>الجولات المسجلة</small><strong>'+count+'</strong></div><div class="stat"><small>تطابق التوقعات</small><strong>'+rate+(count?"%":"")+'</strong></div></div><p class="hint">النسبة محسوبة من الإدخالات التي سجلتها يدوياً فقط، وليست دليلاً على دقة مستقبلية.</p>';
-}
-function roundForm(){
- return '<h3>تسجيل جولة للمقارنة</h3><div class="field-row"><div><label for="predicted">التوقع (x)</label><input id="predicted" type="number" min="1" step="0.01" placeholder="مثال 1.80"></div><div><label for="actual">النتيجة الفعلية (x)</label><input id="actual" type="number" min="1" step="0.01" placeholder="مثال 2.10"></div></div><button class="primary" id="save-round">حفظ الجولة</button><p class="hint">يُعد التوقع مطابقاً إذا كان أقل من أو يساوي النتيجة الفعلية. هذا مقياس مبسط للمقارنة وليس توصية للمراهنة.</p>';
-}
-function addRound(){
- const p=Number($("predicted").value),a=Number($("actual").value);
- if(!Number.isFinite(p)||!Number.isFinite(a)||p<1||a<1){alert("أدخل قيمتين صحيحتين أكبر من أو تساوي 1.");return}
- rounds.unshift({id:Date.now(),predicted:p,actual:a,hit:p<=a,at:new Date().toISOString()});
- rounds=rounds.slice(0,500);saveRounds();openPanel("history");
-}
-function roundList(){
- if(!rounds.length)return '<div class="empty">لا توجد جولات مسجلة بعد. أضف أول جولة للمقارنة.</div>';
- return '<h3>آخر الجولات</h3><div class="round-list">'+rounds.slice(0,30).map(r=>'<div class="round-item"><span>توقع '+r.predicted.toFixed(2)+'x<br>نتيجة '+r.actual.toFixed(2)+'x</span><strong class="'+(r.hit?"good":"bad")+'">'+(r.hit?"مطابق":"غير مطابق")+'</strong></div>').join("")+'</div><button class="secondary" id="clear-rounds">مسح السجل</button>';
-}
-function comparisonList(){
- if(!rounds.length)return '<div class="empty">لا توجد بيانات للمقارنة. سجّل جولات من قسم «الجولات المسجلة» أولاً.</div>';
- return '<p>تُعرض هنا مقارنة كل توقع أدخلته مع النتيجة الفعلية التي سجلتها.</p>'+roundList();
-}
-function makeAsh(){const host=document.querySelector(".ash");if(!host)return;for(let i=0;i<34;i++){const d=document.createElement("i");d.style.left=(Math.random()*100)+"%";d.style.animationDuration=(7+Math.random()*13)+"s";d.style.animationDelay=(-Math.random()*18)+"s";d.style.opacity=String(.25+Math.random()*.65);host.appendChild(d)}}
-show("splash");splash();makeAsh();
-})();
+const demoPosts = [
+{id:1,name:"وكالة أركان العقارية",initial:"أ",verified:true,time:"منذ 12 دقيقة",city:"الجزائر",area:"حيدرة، الجزائر العاصمة",deal:"بيع",type:"شقة",title:"شقة راقية بإطلالة مفتوحة في حيدرة",price:"3.8 مليار سنتيم",numeric:38000000,desc:"مساحة واسعة بتصميم عصري، تشطيبات ممتازة وإضاءة طبيعية طوال اليوم. قريبة من جميع المرافق.",beds:3,baths:2,size:"145 م²",image:"https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?w=1200&auto=format&fit=crop",likes:128,comments:18},
+{id:2,name:"ياسين بن عمر",initial:"ي",verified:false,time:"منذ 38 دقيقة",city:"وهران",area:"كانستيل، وهران",deal:"كراء",type:"فيلا",title:"فيلا عائلية بحديقة ومسبح خاص",price:"18 مليون / الشهر",numeric:180000,desc:"مكان هادئ للعائلات، حديقة خضراء ومساحات مشرقة مع موقف سيارات خاص.",beds:4,baths:3,size:"280 م²",image:"https://images.unsplash.com/photo-1600607687920-4e2a09cf159d?w=1200&auto=format&fit=crop",likes:94,comments:12},
+{id:3,name:"دار للاستثمار",initial:"د",verified:true,time:"منذ ساعة",city:"سطيف",area:"وسط المدينة، سطيف",deal:"بيع",type:"محل",title:"محل تجاري في موقع استراتيجي",price:"1.2 مليار سنتيم",numeric:12000000,desc:"واجهة واسعة وحركة تجارية ممتازة، مناسب لمختلف الأنشطة والاستثمار.",beds:0,baths:1,size:"86 م²",image:"https://images.unsplash.com/photo-1497366754035-f200968a6e72?w=1200&auto=format&fit=crop",likes:67,comments:9},
+{id:4,name:"مريم للعقارات",initial:"م",verified:true,time:"منذ ساعتين",city:"بجاية",area:"تيشي، بجاية",deal:"بيع",type:"فيلا",title:"بيت بإطلالة بحرية ساحرة",price:"حسب الطلب",numeric:0,desc:"إطلالة مفتوحة على البحر ومساحات خارجية مريحة، فرصة مميزة للسكن أو العطلة.",beds:3,baths:2,size:"210 م²",image:"https://images.unsplash.com/photo-1600566753086-00f18fb6b3ea?w=1200&auto=format&fit=crop",likes:203,comments:31}
+];
+let posts = [...demoPosts];
+let activeDeal="الكل", activeCity="الكل", currentView="home";
+let saved = new Set(JSON.parse(localStorage.getItem("darna-saved")||"[]"));
+let liked = new Set();
+const $=s=>document.querySelector(s);
+const feed=$("#feedPosts");
+function toast(msg){const el=$("#toast");el.textContent=msg;el.classList.add("show");clearTimeout(window.__toast);window.__toast=setTimeout(()=>el.classList.remove("show"),2300)}
+function card(p){return `<article class="post" data-id="${p.id}"><div class="post-head"><div class="avatar">${p.initial}</div><div class="post-user"><b>${p.name} ${p.verified?'<span class="verified">✓</span>':''}</b><small>${p.time} · ${p.city}</small></div><button class="more-btn" aria-label="المزيد">···</button></div><div class="post-image"><img src="${p.image}" alt="${p.title}" loading="lazy"><span class="deal-tag">${p.deal} · ${p.type}</span><span class="price-tag">${p.price}</span></div><div class="post-body"><h3 class="post-title">${p.title}</h3><div class="post-location">⌖ ${p.area}</div><p class="post-desc">${p.desc}</p><div class="features">${p.beds?`<span>▣ ${p.beds} غرف</span>`:''}<span>♧ ${p.baths} حمام</span><span>▱ ${p.size}</span></div></div><div class="post-actions"><button class="post-action ${liked.has(p.id)?'liked':''}" data-action="like" data-id="${p.id}">♡ ${p.likes+(liked.has(p.id)?1:0)} إعجاب</button><button class="post-action" data-action="comment" data-id="${p.id}">▢ ${p.comments} تعليق</button><button class="post-action ${saved.has(p.id)?'saved':''}" data-action="save" data-id="${p.id}">${saved.has(p.id)?'★ محفوظ':'☆ حفظ'}</button><button class="post-action contact" data-action="contact" data-id="${p.id}">تواصل مع المعلن ←</button></div></article>`}
+function render(){let list=[...posts];if(activeDeal!=="الكل")list=list.filter(p=>p.deal===activeDeal);if(activeCity!=="الكل")list=list.filter(p=>p.city===activeCity);if(currentView==="saved")list=list.filter(p=>saved.has(p.id));const q=$("#globalSearch").value.trim();if(q)list=list.filter(p=>(p.title+p.city+p.area+p.type+p.name).includes(q));const type=$("#typeFilter").value;if(type!=="الكل")list=list.filter(p=>p.type===type);const wilaya=$("#wilayaFilter").value;if(wilaya!=="الكل")list=list.filter(p=>p.city===wilaya);$("#feedPosts").innerHTML=list.length?list.map(card).join(""):`<div class="empty-state"><span>⌕</span><b>لا توجد نتائج هنا بعد</b><p>جرّب تغيير الفلاتر أو استكشف عروضاً أخرى.</p></div>`}
+function openModal(html){$("#modalBody").innerHTML=html;$("#modalBackdrop").classList.remove("hidden")}
+function closeModal(){$("#modalBackdrop").classList.add("hidden")}
+function publishForm(){openModal(`<h2 id="modalTitle">انشر عقارك في دارنا</h2><p>شارك التفاصيل الأساسية ليصل إعلانك إلى المهتمين.</p><form id="publishForm"><div class="form-field"><label>عنوان الإعلان</label><input name="title" required placeholder="مثال: شقة عصرية بإطلالة جميلة"></div><div class="form-grid"><div class="form-field"><label>نوع العرض</label><select name="deal"><option>بيع</option><option>كراء</option></select></div><div class="form-field"><label>نوع العقار</label><select name="type"><option>شقة</option><option>فيلا</option><option>أرض</option><option>محل</option></select></div><div class="form-field"><label>الولاية</label><select name="city"><option>الجزائر</option><option>وهران</option><option>قسنطينة</option><option>سطيف</option><option>بجاية</option></select></div><div class="form-field"><label>السعر</label><input name="price" required placeholder="مثال: 2.5 مليار سنتيم"></div></div><div class="form-field"><label>الموقع بالتفصيل</label><input name="area" required placeholder="الحي والبلدية"></div><div class="form-field"><label>وصف العقار</label><textarea name="desc" placeholder="المساحة، الغرف، المميزات..."></textarea></div><div class="form-field"><label>رابط صورة (اختياري في النسخة التجريبية)</label><input name="image" type="url" placeholder="https://..."></div><button class="primary-btn modal-submit" type="submit">نشر الإعلان الآن ←</button></form>`);$("#publishForm").addEventListener("submit",e=>{e.preventDefault();const d=Object.fromEntries(new FormData(e.target));posts.unshift({id:Date.now(),name:"حساب تجريبي",initial:"م",verified:false,time:"الآن",city:d.city,area:d.area,deal:d.deal,type:d.type,title:d.title,price:d.price,numeric:0,desc:d.desc||"تواصل مع المعلن لمعرفة المزيد.",beds:0,baths:0,size:"غير محدد",image:d.image||"https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?w=1200&auto=format&fit=crop",likes:0,comments:0});closeModal();activeDeal="الكل";activeCity="الكل";render();toast("تمت إضافة إعلانك محلياً في هذه التجربة")})}
+function view(v){currentView=v;document.querySelectorAll("[data-view]").forEach(b=>b.classList.toggle("active",b.dataset.view===v));const titles={home:"الرئيسية",explore:"اكتشف العقارات",saved:"العقارات المحفوظة",messages:"الرسائل",profile:"ملفي الشخصي","my-listings":"إعلاناتي",agents:"الوكالات والوسطاء"};if(v==="messages"||v==="profile"||v==="my-listings"||v==="agents"){openModal(`<h2>${titles[v]}</h2><p>${v==="messages"?"ستظهر محادثاتك مع المعلنين هنا عند ربط نظام الحسابات والرسائل.":"هذه المساحة جاهزة للمرحلة التالية من تطوير دارنا."}</p><button class="primary-btn modal-submit" id="modalOkay">حسناً</button>`);$("#modalOkay").onclick=closeModal}else{activeDeal="الكل";activeCity="الكل";document.querySelectorAll(".filter").forEach(b=>b.classList.toggle("active",b.dataset.filter==="الكل"));render();if(v==="explore")toast("استكشف العروض المتاحة في دارنا");}}
+document.addEventListener("click",e=>{const v=e.target.closest("[data-view]");if(v){e.preventDefault();view(v.dataset.view);return}const f=e.target.closest("[data-filter]");if(f){activeDeal=f.dataset.filter;document.querySelectorAll(".filter").forEach(b=>b.classList.toggle("active",b===f));render();return}const city=e.target.closest("[data-city]");if(city){activeCity=city.dataset.city;document.querySelectorAll(".story").forEach(b=>b.classList.toggle("active",b===city));render();return}const a=e.target.closest("[data-action]");if(a){const p=posts.find(x=>x.id===Number(a.dataset.id));if(a.dataset.action==="like"){liked.has(p.id)?liked.delete(p.id):liked.add(p.id);render()}if(a.dataset.action==="save"){saved.has(p.id)?saved.delete(p.id):saved.add(p.id);localStorage.setItem("darna-saved",JSON.stringify([...saved]));render();toast(saved.has(p.id)?"أضيف إلى المحفوظات":"أزيل من المحفوظات")}if(a.dataset.action==="comment")toast("التعليقات ستتوفر مع نظام الحسابات");if(a.dataset.action==="contact")openModal(`<h2>التواصل مع ${p.name}</h2><p>إعلان: ${p.title}</p><div class="form-field"><label>رسالتك</label><textarea placeholder="مرحباً، أود معرفة المزيد عن العقار..."></textarea></div><button class="primary-btn modal-submit" id="sendDemo">إرسال رسالة تجريبية</button>`),$("#sendDemo").onclick=()=>{closeModal();toast("المراسلة الحقيقية ستُفعّل عند ربط الخادم")};return}});
+["#publishTop","#sidePublish","#mobilePublish","#composerOpen","#composerPhoto"].forEach(s=>$(s).addEventListener("click",publishForm));
+$("#modalClose").onclick=closeModal;$("#modalBackdrop").addEventListener("click",e=>{if(e.target.id==="modalBackdrop")closeModal()});
+$("#globalSearch").addEventListener("input",render);$("#applyFilters").onclick=render;
+$("#typeFilter").addEventListener("change",render);$("#wilayaFilter").addEventListener("change",render);
+$("#notifBtn").onclick=()=>toast("لا توجد إشعارات جديدة");$("#sortBtn").onclick=()=>toast("تعرض النسخة التجريبية الأحدث أولاً");
+render();
+if("serviceWorker" in navigator)window.addEventListener("load",()=>navigator.serviceWorker.register("/sw.js").catch(()=>{}));

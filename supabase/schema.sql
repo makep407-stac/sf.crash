@@ -147,3 +147,32 @@ grant usage on schema public to anon, authenticated;
 grant select on public.profiles, public.listings, public.listing_likes, public.listing_comments to anon, authenticated;
 grant insert, update, delete on public.profiles, public.listings, public.listing_likes, public.listing_saves, public.listing_comments, public.direct_messages to authenticated;
 grant select on public.listing_saves, public.direct_messages to authenticated;
+
+-- Keep private phone numbers out of the public profile API.
+revoke select on public.profiles from anon, authenticated;
+grant select (id, display_name, avatar_url, created_at, updated_at) on public.profiles to anon, authenticated;
+
+-- Public listing photos; each authenticated user may manage only their own folder.
+insert into storage.buckets (id, name, public)
+values ('listing-images', 'listing-images', true)
+on conflict (id) do update set public = true;
+
+drop policy if exists "Public can view listing images" on storage.objects;
+create policy "Public can view listing images" on storage.objects
+for select using (bucket_id = 'listing-images');
+
+drop policy if exists "Users upload listing images to own folder" on storage.objects;
+create policy "Users upload listing images to own folder" on storage.objects
+for insert to authenticated
+with check (bucket_id = 'listing-images' and (storage.foldername(name))[1] = auth.uid()::text);
+
+drop policy if exists "Users update own listing images" on storage.objects;
+create policy "Users update own listing images" on storage.objects
+for update to authenticated
+using (bucket_id = 'listing-images' and (storage.foldername(name))[1] = auth.uid()::text)
+with check (bucket_id = 'listing-images' and (storage.foldername(name))[1] = auth.uid()::text);
+
+drop policy if exists "Users delete own listing images" on storage.objects;
+create policy "Users delete own listing images" on storage.objects
+for delete to authenticated
+using (bucket_id = 'listing-images' and (storage.foldername(name))[1] = auth.uid()::text);

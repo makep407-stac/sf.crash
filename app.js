@@ -79,3 +79,6 @@ function mapRemoteListing(row){return {id:row.id,name:"عضو دارنا",initia
 async function loadRemoteListings(){if(!darnaSupabase)return;const {data,error}=await darnaSupabase.from("listings").select("*").eq("status","active").order("created_at",{ascending:false}).limit(100);if(error){console.warn("DARNA listings:",error.message);return;}posts=data.map(mapRemoteListing);render();}
 
 loadRemoteListings();
+
+$("#dealFilter")?.addEventListener("change",()=>{activeDeal=$("#dealFilter").value||"الكل";document.querySelectorAll(".filter").forEach(b=>b.classList.toggle("active",b.dataset.filter===activeDeal));render();});
+document.querySelectorAll(".filter").forEach(b=>b.addEventListener("click",()=>{if($("#dealFilter"))$("#dealFilter").value=b.dataset.filter;}));

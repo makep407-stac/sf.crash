@@ -14,3 +14,11 @@
 #authMessage{font-size:12px;color:#547f6d;min-height:18px}
 .auth-switch{display:block;margin:13px auto 0;border:0;background:transparent;color:#9b7c4d;font-size:11px}
 @media(max-width:720px){.auth-top-btn{font-size:9px;padding:8px 9px}.top-actions{margin-right:auto}.topbar{gap:8px}.top-search{min-width:70px}.search-card{display:block}}
+
+/* The geographic search is part of the feed so it remains reachable on phones. */
+.feed .search-card{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px 12px;margin:0 0 16px;padding:16px}
+.feed .search-card .rail-heading{grid-column:1/-1;margin:0 0 2px}
+.feed .search-card label{margin:0}
+.feed .search-card .full{grid-column:1/-1;max-width:190px}
+.feed .search-card .search-foot{grid-column:1/-1;margin:0}
+@media(max-width:720px){.feed .search-card{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;padding:13px}.feed .search-card .rail-heading{margin-bottom:0}.feed .search-card .full{max-width:none}.feed .search-card .search-foot{font-size:9px}}

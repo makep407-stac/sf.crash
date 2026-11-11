@@ -13,7 +13,7 @@
 <header class="topbar">
   <a class="brand" href="#" data-view="home"><span class="brand-mark">D</span><span><b>DARNA</b><small>دارنا أقرب مما تتخيل</small></span></a>
   <label class="top-search"><span>⌕</span><input id="globalSearch" placeholder="ابحث عن عقار، ولاية، أو حي..." autocomplete="off"><kbd>⌘ K</kbd></label>
-  <div class="top-actions"><button class="icon-btn" id="notifBtn" aria-label="الإشعارات">♧<i></i></button><button class="avatar avatar-top" data-view="profile">م</button></div>
+  <div class="top-actions"><button class="auth-top-btn" id="authOpen">دخول / حساب جديد</button><button class="icon-btn" id="notifBtn" aria-label="الإشعارات">♧<i></i></button><button class="avatar avatar-top" data-view="profile">م</button></div>
 </header>
 <div class="layout">
 <aside class="sidebar">
@@ -46,8 +46,15 @@
   <div id="feedPosts" class="posts"></div>
 </main>
 <aside class="right-rail">
-  <section class="rail-card search-card"><div class="rail-heading"><b>اعثر على عقارك</b><span>⌕</span></div><label>ماذا تبحث عنه؟<select id="typeFilter"><option value="الكل">كل العقارات</option><option>شقة</option><option>فيلا</option><option>أرض</option><option>محل</option></select></label><label>الولاية<select id="wilayaFilter"><option value="الكل">كل الولايات</option><option>الجزائر</option><option>وهران</option><option>قسنطينة</option><option>سطيف</option><option>بجاية</option></select></label><label>نوع العرض<select id="dealFilter"><option value="الكل">بيع وكراء</option><option>بيع</option><option>كراء</option></select></label><button class="primary-btn full" id="applyFilters">عرض النتائج <span>←</span></button><div class="search-foot">أكثر من <b>48 ولاية</b> في مكان واحد</div></section>
-  <section class="rail-card trend-card"><div class="rail-heading"><b>وجهات رائجة</b><a href="#" data-view="explore">عرض الكل</a></div><div class="trend"><span class="trend-number">01</span><div><b>الجزائر العاصمة</b><small>شقق عصرية · حيوية المدينة</small></div><span class="trend-arrow">↗</span></div><div class="trend"><span class="trend-number">02</span><div><b>وهران</b><small>إطلالات بحرية · فرص استثمار</small></div><span class="trend-arrow">↗</span></div><div class="trend"><span class="trend-number">03</span><div><b>سطيف</b><small>سكن عائلي · أحياء هادئة</small></div><span class="trend-arrow">↗</span></div></section>
+  <section class="rail-card search-card"><div class="rail-heading"><b>ابحث عن عقارك</b><span>⌕</span></div>
+<label>ماذا تريد؟<select id="dealFilter"><option value="الكل">شراء أو كراء</option><option value="بيع">شراء (بيع)</option><option value="كراء">كراء</option></select></label>
+<label>الولاية<select id="wilayaFilter"><option value="">كل الولايات (69)</option></select></label>
+<label>الدائرة<select id="dairaFilter" disabled><option value="">اختر الولاية أولاً</option></select></label>
+<label>البلدية<select id="communeFilter" disabled><option value="">اختر الدائرة أولاً</option></select></label>
+<label>نوع العقار<select id="typeFilter"><option value="الكل">كل الأنواع</option><option>شقة</option><option>فيلا</option><option>أرض</option><option>محل</option></select></label>
+<label>السعر الأقصى (دج)<input id="maxPriceFilter" type="number" min="0" placeholder="بدون حد أقصى"></label>
+<button class="primary-btn full" id="applyFilters">اعرض العقارات <span>←</span></button><div class="search-foot">بحث حسب التقسيم الإداري الجزائري المحدّث</div></section>
+<section class="rail-card trend-card"><div class="rail-heading"><b>وجهات رائجة</b><a href="#" data-view="explore">عرض الكل</a></div><div class="trend"><span class="trend-number">01</span><div><b>الجزائر العاصمة</b><small>شقق عصرية · حيوية المدينة</small></div><span class="trend-arrow">↗</span></div><div class="trend"><span class="trend-number">02</span><div><b>وهران</b><small>إطلالات بحرية · فرص استثمار</small></div><span class="trend-arrow">↗</span></div><div class="trend"><span class="trend-number">03</span><div><b>سطيف</b><small>سكن عائلي · أحياء هادئة</small></div><span class="trend-arrow">↗</span></div></section>
   <section class="rail-note"><span>✦</span><div><b>دارنا تجمعنا</b><p>منصة واحدة لكل من يبحث عن مكان يسميه بيتاً.</p></div></section>
 </aside>
 </div>
@@ -55,5 +62,5 @@
 </div>
 <div class="modal-backdrop hidden" id="modalBackdrop"><section class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle"><button class="modal-close" id="modalClose">×</button><div id="modalBody"></div></section></div>
 <div class="toast" id="toast"></div>
-<script src="/app.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="/supabase-config.js"></script><script src="/app.js"></script>
 </body></html>

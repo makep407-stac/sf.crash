@@ -1,16 +1,12 @@
 {
-  "id": "/",
-  "name": "sf.crash",
-  "short_name": "sf.crash",
-  "description": "واجهة متابعة ومقارنة جولات Crash",
+  "name": "DARNA — دارنا",
+  "short_name": "DARNA",
+  "description": "شبكة دارنا العقارية",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f5f7f9",
+  "theme_color": "#101b2b",
   "lang": "ar",
   "dir": "rtl",
-  "start_url": "./",
-  "scope": "./",
-  "display": "standalone",
-  "background_color": "#05070b",
-  "theme_color": "#05070b",
-  "icons": [
-    {"src":"assets/plane.svg","sizes":"any","type":"image/svg+xml","purpose":"any"}
-  ]
+  "icons": []
 }
